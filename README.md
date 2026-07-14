@@ -181,7 +181,7 @@ MIT License - Feel free to use this project for personal or commercial purposes.
 Industrial Engineer | Data Visualization Specialist | Full-Stack Developer
 
 - **LinkedIn**: [linkedin.com/in/ezequielmanzur](https://linkedin.com/in/ezequielmanzur)
-- **GitHub**: [@yourusername](https://github.com/yourusername)
+- **GitHub**: [@EzequielManzur](https://github.com/EzequielManzur)
 
 ---
 
