@@ -1,0 +1,35 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Sensitive files
+*.mpp
+*.xlsx
+secrets.json
+credentials.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (si en algún momento usás npm)
+node_modules/
+package-lock.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+
+# Real data (keep only sample data)
+**/Proyectos_Real*.json
+**/Proyectos_Real*.csv

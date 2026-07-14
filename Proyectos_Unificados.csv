@@ -1,0 +1,39 @@
+ID Proyecto,Id,Nombre de tarea,Duración,Comienzo,Fin,Fin Real Efectivo,Resumen,% completado,Nivel_de_esquema,Grupo_ID,Grupo_Nombre
+Project Alpha,1,Phase 1 Setup,5,2024-06-15,2024-06-19,2024-06-19,False,100,2,1, Planning & Setup
+Project Alpha,2,Infrastructure Configuration,8,2024-06-20,2024-06-28,2024-06-28,False,100,2,1, Planning & Setup
+Project Alpha,3,Database Design,10,2024-06-29,2024-07-10,2024-07-12,False,100,2,2, Database Layer
+Project Alpha,4,Data Migration Scripts,12,2024-07-11,2024-07-25,,False,45,2,2, Database Layer
+Project Alpha,5,API Development,15,2024-07-15,2024-08-02,,False,60,2,3, Backend Development
+Project Alpha,6,API Testing,8,2024-08-03,2024-08-12,,False,25,2,3, Backend Development
+Project Alpha,7,Frontend Framework Setup,7,2024-07-20,2024-07-27,2024-07-27,False,100,2,4, Frontend Development
+Project Alpha,8,UI Component Library,14,2024-07-28,2024-08-12,,False,70,2,4, Frontend Development
+Project Alpha,9,Authentication Module,10,2024-08-01,2024-08-12,,False,50,2,4, Frontend Development
+Project Alpha,10,Integration Testing,12,2024-08-13,2024-08-27,,False,30,2,5, Testing Phase
+Project Alpha,11,Performance Optimization,8,2024-08-28,2024-09-05,,False,15,2,5, Testing Phase
+Project Alpha,12,UAT Preparation,5,2024-09-06,2024-09-11,,False,0,2,5, Testing Phase
+Project Beta,1,Requirements Gathering,3,2024-05-01,2024-05-03,2024-05-03,False,100,2,1, Discovery Phase
+Project Beta,2,Architecture Design,7,2024-05-04,2024-05-11,2024-05-11,False,100,2,1, Discovery Phase
+Project Beta,3,Technology Stack Setup,5,2024-05-12,2024-05-17,2024-05-17,False,100,2,2, Infrastructure Phase
+Project Beta,4,CI/CD Pipeline Configuration,8,2024-05-18,2024-05-27,2024-05-27,False,100,2,2, Infrastructure Phase
+Project Beta,5,Core Services Development,20,2024-05-28,2024-06-20,2024-06-22,False,100,2,3, Development Phase
+Project Beta,6,API Endpoints Implementation,18,2024-06-21,2024-07-12,2024-07-14,False,100,2,3, Development Phase
+Project Beta,7,Database Optimization,10,2024-07-13,2024-07-25,2024-07-25,False,100,2,3, Development Phase
+Project Beta,8,Security Hardening,12,2024-07-26,2024-08-08,2024-08-10,False,100,2,4, Security & Testing
+Project Beta,9,Load Testing,8,2024-08-09,2024-08-18,2024-08-18,False,100,2,4, Security & Testing
+Project Beta,10,Documentation,10,2024-08-19,2024-09-01,,False,90,2,5, Documentation
+Infrastructure 2024,1,Network Assessment,10,2024-07-10,2024-07-22,2024-07-22,False,100,2,1, Network Layer
+Infrastructure 2024,2,Firewall Configuration,15,2024-07-23,2024-08-08,,False,60,2,1, Network Layer
+Infrastructure 2024,3,Server Provisioning,12,2024-08-09,2024-08-23,,False,40,2,2, Server Setup
+Infrastructure 2024,4,Storage Architecture,18,2024-08-24,2024-09-12,,False,15,2,2, Server Setup
+Infrastructure 2024,5,Backup Strategy,8,2024-09-13,2024-09-23,,False,0,2,3, Disaster Recovery
+Data Migration Q4,1,Data Audit,5,2024-08-20,2024-08-25,2024-08-25,False,100,2,1, Preparation
+Data Migration Q4,2,ETL Script Development,12,2024-08-26,2024-09-08,2024-09-08,False,100,2,1, Preparation
+Data Migration Q4,3,Test Migration Run,8,2024-09-09,2024-09-19,2024-09-19,False,100,2,2, Testing
+Data Migration Q4,4,Production Migration,5,2024-09-20,2024-09-25,,False,100,2,3, Migration
+Data Migration Q4,5,Data Validation,5,2024-09-26,2024-10-01,,False,80,2,3, Migration
+Platform Upgrade,1,Current System Analysis,7,2024-06-01,2024-06-08,2024-06-08,False,100,2,1, Assessment
+Platform Upgrade,2,Upgrade Planning,10,2024-06-09,2024-06-20,2024-06-20,False,100,2,1, Assessment
+Platform Upgrade,3,Compatibility Testing,14,2024-06-21,2024-07-06,,False,85,2,2, Testing Phase
+Platform Upgrade,4,Data Backup,5,2024-07-07,2024-07-13,,False,100,2,3, Preparation
+Platform Upgrade,5,Platform Upgrade Execution,8,2024-07-14,2024-07-24,,False,60,2,4, Execution
+Platform Upgrade,6,Post-Upgrade Testing,10,2024-07-25,2024-08-05,,False,40,2,4, Execution
