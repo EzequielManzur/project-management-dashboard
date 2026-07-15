@@ -511,10 +511,13 @@ function generarCurvaSDesdeTareas(listaTareas) {
     const duracion = Math.max(1, Math.round((fin - inicio) / (1000 * 60 * 60 * 24)) + 1);
     const duracionHabil = contarDiasHabilesEntre(inicio, fin);
 
+    const finReal = parseFechaLocal(t["Fin Real Efectivo"]) || null;
+    if (finReal) finReal.setHours(0, 0, 0, 0);
+
     tareasPreparadas.push({
       inicio,
       fin,
-      finReal: parseFechaLocal(t["Fin Real Efectivo"]) || null,
+      finReal,
       duracion,
       duracionHabil,
       porcentaje
@@ -522,14 +525,24 @@ function generarCurvaSDesdeTareas(listaTareas) {
 
     fechas.push(inicio);
     fechas.push(fin);
+    // Si la tarea se completó realmente después de su Fin planificado,
+    // el rango de la curva tiene que estirarse hasta esa fecha real,
+    // sino la curva se corta antes de que la tarea llegue a su 100%.
+    if (finReal) fechas.push(finReal);
 
-    sumaDuraciones += duracion;
+    sumaDuraciones += duracionHabil;
   });
 
   if (tareasPreparadas.length === 0 || sumaDuraciones === 0) return [];
 
   const fechaMin = new Date(Math.min(...fechas.map(f => f.getTime())));
   const fechaMax = new Date(Math.max(...fechas.map(f => f.getTime())));
+
+  // Si el proyecto ya venció según el plan (fechaMax quedó antes que HOY),
+  // "hoy" nunca cae dentro del rango de la curva. Usamos fechaMax como
+  // "hoy efectivo" para que las tareas sin Fin Real Efectivo sigan
+  // reflejando su % completado en el tramo final de la curva.
+  const hoyEfectivo = hoy > fechaMax ? new Date(fechaMax) : hoy;
 
   const curva = [];
 
@@ -552,13 +565,27 @@ function generarCurvaSDesdeTareas(listaTareas) {
           const diasTranscurridos = contarDiasHabilesEntre(t.inicio, d);
           porcentajeRealHastaFecha = (diasTranscurridos / duracionRealHabil) * t.porcentaje;
         }
-      } else if (d >= hoy && d >= t.inicio) {
-        // Sin Fin Real Efectivo: usamos el % completado actual como mejor estimación
-        // disponible para HOY en adelante, en vez de forzar 0.
-        porcentajeRealHastaFecha = t.porcentaje;
+      } else {
+        // Sin Fin Real Efectivo: no sabemos el día exacto en que la tarea llegó
+        // a su % completado actual, así que lo distribuimos proporcionalmente
+        // entre su Comienzo y el primero de estos dos hitos: el Fin planificado
+        // de la tarea, o HOY-efectivo (lo que ocurra antes). Después de ese
+        // punto la curva queda plana en el % completado conocido, evitando el
+        // escalón abrupto al final en proyectos ya vencidos.
+        const limiteConocido = t.fin < hoyEfectivo ? t.fin : hoyEfectivo;
+
+        if (d < t.inicio) {
+          porcentajeRealHastaFecha = 0;
+        } else if (d >= limiteConocido) {
+          porcentajeRealHastaFecha = t.porcentaje;
+        } else {
+          const duracionHastaLimite = contarDiasHabilesEntre(t.inicio, limiteConocido);
+          const diasTranscurridos = contarDiasHabilesEntre(t.inicio, d);
+          porcentajeRealHastaFecha = (diasTranscurridos / duracionHastaLimite) * t.porcentaje;
+        }
       }
 
-      avanceRealPonderado += t.duracion * (porcentajeRealHastaFecha / 100);
+      avanceRealPonderado += duracionHabil * (porcentajeRealHastaFecha / 100);
 
       let porcentajeTeoricoHastaFecha = 0;
 
@@ -571,13 +598,23 @@ function generarCurvaSDesdeTareas(listaTareas) {
         porcentajeTeoricoHastaFecha = (diasHabilesTranscurridos / duracionHabil) * 100;
       }
 
-      avanceTeoricoPonderado += duracion * (porcentajeTeoricoHastaFecha / 100);
+      avanceTeoricoPonderado += duracionHabil * (porcentajeTeoricoHastaFecha / 100);
     });
+
+    // Carga de tareas: cantidad de tareas activas (no finalizadas) en esta fecha
+    let tareasActivas = 0;
+    tareasPreparadas.forEach(t => {
+      if (d >= t.inicio && d <= t.fin && t.porcentaje < 100) {
+        tareasActivas++;
+      }
+    });
+    const cargaNormalizada = (tareasActivas / Math.max(tareasPreparadas.length, 1)) * 100;
 
     curva.push({
       fecha: new Date(d),
       real: (avanceRealPonderado / sumaDuraciones) * 100,
-      teorico: (avanceTeoricoPonderado / sumaDuraciones) * 100
+      teorico: (avanceTeoricoPonderado / sumaDuraciones) * 100,
+      carga: cargaNormalizada
     });
   }
 
@@ -585,7 +622,8 @@ function generarCurvaSDesdeTareas(listaTareas) {
     curva.push({
       fecha: new Date(curva[0].fecha.getTime() + 86400000),
       real: curva[0].real,
-      teorico: curva[0].teorico
+      teorico: curva[0].teorico,
+      carga: curva[0].carga
     });
   }
 
@@ -697,10 +735,10 @@ function renderTarjetasDinamicas(tareasFiltradas,curvaDinamica) {
     
       if (!inicio || !fin) return;
     
-      const duracion = Math.max(1, Math.round((fin - inicio) / (1000 * 60 * 60 * 24)) + 1);
+      const duracionHabil = contarDiasHabilesEntre(inicio, fin);
     
-      sumaPonderada += duracion * porcentaje;
-      sumaDuraciones += duracion;
+      sumaPonderada += duracionHabil * porcentaje;
+      sumaDuraciones += duracionHabil;
     });
     
     avanceTotal = sumaDuraciones > 0 ? (sumaPonderada / sumaDuraciones) : 0;
@@ -1550,10 +1588,18 @@ function renderGraficoLineaComparacion(curva) {
         
         const real = params.find(p => p.seriesName === "Avance Real");
         const teorico = params.find(p => p.seriesName === "Avance Teórico");
+        const carga = params.find(p => p.seriesName === "Carga de Tareas");
         const fecha = echarts.format.formatTime("dd/MM/yyyy", params[0].value[0]);
     
         const colorReal = "#197F66";
         const colorTeorico = "#94A3B8";
+        const colorCarga = "#a78bfa";
+    
+        const filaCarga = carga ? `
+              <div style="display: flex; justify-content: space-between; gap: 20px; margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.1);">
+                <span><span style="color:${colorCarga}">●</span> Carga de Tareas:</span>
+                <b>${Number(carga.value[1]).toFixed(0)}%</b>
+              </div>` : "";
     
         return `
           <div style="position: relative; padding: 2px; background: linear-gradient(to bottom right, ${colorReal}, ${colorTeorico}); border-radius: 8px;">
@@ -1567,6 +1613,7 @@ function renderGraficoLineaComparacion(curva) {
                 <span><span style="color:${colorTeorico}">●</span> Avance Teórico:</span>
                 <b>${teorico ? Number(teorico.value[1]).toFixed(2) : "0.00"}%</b>
               </div>
+              ${filaCarga}
             </div>
           </div>
         `;
@@ -1576,9 +1623,9 @@ function renderGraficoLineaComparacion(curva) {
     legend: {
       bottom: -5,
       textStyle: { color: "#ffffff", fontSize: 12, fontFamily: "'DM Sans', Inter, sans-serif" },
-      data: ["Avance Real", "Avance Teórico"]
+      data: ["Avance Real", "Avance Teórico", "Carga de Tareas"]
     },
-    grid: { left: 45, right: 20, top: 10, bottom: 45 },
+    grid: { left: 45, right: 45, top: 10, bottom: 45 },
     xAxis: {
       type: "time",
       min: curva[0].fecha instanceof Date ? curva[0].fecha : new Date(curva[0].fecha),
@@ -1627,22 +1674,55 @@ function renderGraficoLineaComparacion(curva) {
       },
       splitLine: { show: false }
     },
-    yAxis: {
-      type: "value",
-      min: 0,
-      max: 100,
-      interval: 20,
-      axisLabel: {
-        color: "#ffffff",
-        fontSize: 11,
-        fontFamily: "'DM Sans', Inter, sans-serif",
-        formatter: (value) => value === 0 ? "" : `${value}%`
+    yAxis: [
+      {
+        type: "value",
+        min: 0,
+        max: 100,
+        interval: 20,
+        axisLabel: {
+          color: "#ffffff",
+          fontSize: 11,
+          fontFamily: "'DM Sans', Inter, sans-serif",
+          formatter: (value) => value === 0 ? "" : `${value}%`
+        },
+        axisLine: { show: true, lineStyle: { color: "rgba(255,255,255,0.35)", width: 2 } },
+        splitLine: { lineStyle: { color: "rgba(255,255,255,0.18)", type: "dashed" } }
       },
-      axisLine: { show: true, lineStyle: { color: "rgba(255,255,255,0.35)", width: 2 } },
-      splitLine: { lineStyle: { color: "rgba(255,255,255,0.18)", type: "dashed" } }
-    },
+      {
+        type: "value",
+        min: 0,
+        max: 100,
+        interval: 20,
+        position: "right",
+        axisLabel: {
+          color: "#a78bfa",
+          fontSize: 11,
+          fontFamily: "'DM Sans', Inter, sans-serif",
+          formatter: (value) => value === 0 ? "" : `${value}%`
+        },
+        axisLine: { show: true, lineStyle: { color: "rgba(167,139,250,0.35)", width: 2 } },
+        splitLine: { show: false }
+      }
+    ],
     
     series: [
+      {
+        name: "Carga de Tareas",
+        type: "line",
+        yAxisIndex: 1,
+        data: curva.map(item => {
+          const f = item.fecha instanceof Date ? item.fecha : new Date(item.fecha);
+          return [f, Number(item.carga || 0)];
+        }),
+        smooth: true,
+        symbol: "none",
+        showSymbol: false,
+        lineStyle: { width: 2, color: "#a78bfa", type: "dotted" },
+        areaStyle: { color: "rgba(167,139,250,0.08)" },
+        emphasis: { focus: "series", itemStyle: { color: "#a78bfa" } },
+        z: 4
+      },
       {
         name: "__gapBase",
         type: "line",
@@ -1855,8 +1935,8 @@ function renderGraficoLineaComparacion(curva) {
         "Avance Real": true,
         "Avance Teórico": true
       };
-      option.series[0].data = dataGapBase;
-      option.series[1].data = dataGapNeg;
+      option.series[1].data = dataGapBase;
+      option.series[2].data = dataGapNeg;
 
       // 4. Volvemos a dibujar. Líneas y mancha viajarán juntas de izquierda a derecha.
       chartLineaComparacion.setOption(option);
@@ -1870,6 +1950,7 @@ function renderGraficoLineaComparacion(curva) {
       // Si el usuario apaga una leyenda, solo vaciamos la mancha roja para que desaparezca suavemente
       chartLineaComparacion.setOption({
         series: [
+          {},
           { name: "__gapBase", data: [] },
           { name: "__gapNeg",  data: [] }
         ]
