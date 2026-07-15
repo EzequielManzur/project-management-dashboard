@@ -412,7 +412,7 @@ function aplicarFiltros() {
     ) || null;
     
     document.getElementById("tituloDashboard").textContent =
-     `${idProyectoSeleccionado || "-"} - Estado General del Proyecto`;
+     `${idProyectoSeleccionado || "-"}`;
     
     tareasFiltradas = tareas.filter(t => {
      const coincideProyecto = limpiarTexto(t["ID Proyecto"]) === limpiarTexto(idProyectoSeleccionado);
@@ -1595,12 +1595,6 @@ function renderGraficoLineaComparacion(curva) {
         const colorTeorico = "#94A3B8";
         const colorCarga = "#a78bfa";
     
-        const filaCarga = carga ? `
-              <div style="display: flex; justify-content: space-between; gap: 20px; margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.1);">
-                <span><span style="color:${colorCarga}">●</span> Carga de Tareas:</span>
-                <b>${Number(carga.value[1]).toFixed(0)}%</b>
-              </div>` : "";
-    
         return `
           <div style="position: relative; padding: 2px; background: linear-gradient(to bottom right, ${colorReal}, ${colorTeorico}); border-radius: 8px;">
             <div style="background: rgba(15, 15, 15, 0.95); border-radius: 6px; padding: 8px 12px; color: #fff; font-size: 13px; font-family: 'DM Sans', Inter, sans-serif;">
@@ -1609,11 +1603,14 @@ function renderGraficoLineaComparacion(curva) {
                 <span><span style="color:${colorReal}">●</span> Avance Real:</span>
                 <b>${real ? Number(real.value[1]).toFixed(2) : "0.00"}%</b>
               </div>
-              <div style="display: flex; justify-content: space-between; gap: 20px;">
+              <div style="display: flex; justify-content: space-between; gap: 20px; margin-bottom: 4px;">
                 <span><span style="color:${colorTeorico}">●</span> Avance Teórico:</span>
                 <b>${teorico ? Number(teorico.value[1]).toFixed(2) : "0.00"}%</b>
               </div>
-              ${filaCarga}
+              <div style="display: flex; justify-content: space-between; gap: 20px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.1);">
+                <span><span style="color:${colorCarga}">●</span> Carga de Tareas:</span>
+                <b>${carga ? Number(carga.value[1]).toFixed(0) : "0"}%</b>
+              </div>
             </div>
           </div>
         `;
@@ -1716,12 +1713,19 @@ function renderGraficoLineaComparacion(curva) {
           return [f, Number(item.carga || 0)];
         }),
         smooth: true,
-        symbol: "none",
+        symbol: "circle",
+        symbolSize: 7,
         showSymbol: false,
+        emphasis: { 
+          focus: "series", 
+          blurScope: "coordinateSystem",
+          itemStyle: { color: "#a78bfa", borderColor: "#ffffff", borderWidth: 2 },
+          scale: 1.6 
+        },
+        itemStyle: { color: "#a78bfa", borderColor: "#a78bfa", borderWidth: 2 },
         lineStyle: { width: 2, color: "#a78bfa", type: "dotted" },
         areaStyle: { color: "rgba(167,139,250,0.08)" },
-        emphasis: { focus: "series", itemStyle: { color: "#a78bfa" } },
-        z: 4
+        z: 8
       },
       {
         name: "__gapBase",
@@ -3812,56 +3816,61 @@ function configurarBuscadorAutocomplete(config) {
     if (onSincronizar) onSincronizar();
   }
 
+  let debounceTimeout;
   buscador.oninput = function() {
-    const valorOriginal = this.value;
-    const textoBuscado  = normalizarTextoBusqueda(valorOriginal);
-    indiceFocusado = -1;
-    if (btnLimpiar) btnLimpiar.classList.toggle("visible", valorOriginal.length > 0);
+    clearTimeout(debounceTimeout);
+    const valorOriginal = this.value; // Capturamos la letra recién ingresada
+    
+    debounceTimeout = setTimeout(() => {
+      const textoBuscado  = normalizarTextoBusqueda(valorOriginal);
+      indiceFocusado = -1;
+      if (btnLimpiar) btnLimpiar.classList.toggle("visible", valorOriginal.length > 0);
 
-    if (textoBuscado.length > 0) {
-      const idProy      = selProy.value;
-      const grupoActivo = selGrupo.value;
-      const coincidencias = [...new Set(tareas
-        .filter(t => {
-          const mismoProyecto = limpiarTexto(t["ID Proyecto"]) === limpiarTexto(idProy);
-          const mismoGrupo    = grupoActivo === "Todos" || normalizarGrupoId(t["Grupo_ID"]) === grupoActivo;
-          return mismoProyecto && mismoGrupo;
-        })
-        .map(t => String(t["Nombre de tarea"] || t["Nombre"] || "").trim())
-        .filter(n => normalizarTextoBusqueda(n).includes(textoBuscado))
-      )].sort((a, b) => a.localeCompare(b, "es"));
+      if (textoBuscado.length > 0) {
+        const idProy      = selProy.value;
+        const grupoActivo = selGrupo.value;
+        const coincidencias = [...new Set(tareas
+          .filter(t => {
+            const mismoProyecto = limpiarTexto(t["ID Proyecto"]) === limpiarTexto(idProy);
+            const mismoGrupo    = grupoActivo === "Todos" || normalizarGrupoId(t["Grupo_ID"]) === grupoActivo;
+            return mismoProyecto && mismoGrupo;
+          })
+          .map(t => String(t["Nombre de tarea"] || t["Nombre"] || "").trim())
+          .filter(n => normalizarTextoBusqueda(n).includes(textoBuscado))
+        )].sort((a, b) => a.localeCompare(b, "es"));
 
-      if (coincidencias.length > 0) {
-        listaSugerencias.innerHTML = coincidencias.map(n =>
-          `<li data-valor="${n}">${resaltarTexto(n, valorOriginal)}</li>`
-        ).join("");
-        abrirDropdown();
-        if (contador) {
-          const totalCoincid = tareas.filter(t =>
-            limpiarTexto(t["ID Proyecto"]) === limpiarTexto(idProy) &&
-            String(t["Resumen"]).trim().toLowerCase() !== "true" &&
-            normalizarTextoBusqueda(String(t["Nombre de tarea"] || t["Nombre"] || "")).includes(textoBuscado)
-          ).length;
-          const totalProyecto = tareas.filter(t =>
-            limpiarTexto(t["ID Proyecto"]) === limpiarTexto(idProy) &&
-            String(t["Resumen"]).trim().toLowerCase() !== "true"
-          ).length;
-          contador.textContent  = `${totalCoincid} / ${totalProyecto}`;
-          contador.style.display = "block";
+        if (coincidencias.length > 0) {
+          listaSugerencias.innerHTML = coincidencias.map(n =>
+            `<li data-valor="${n}">${resaltarTexto(n, valorOriginal)}</li>`
+          ).join("");
+          abrirDropdown();
+          if (contador) {
+            const totalCoincid = tareas.filter(t =>
+              limpiarTexto(t["ID Proyecto"]) === limpiarTexto(idProy) &&
+              String(t["Resumen"]).trim().toLowerCase() !== "true" &&
+              normalizarTextoBusqueda(String(t["Nombre de tarea"] || t["Nombre"] || "")).includes(textoBuscado)
+            ).length;
+            const totalProyecto = tareas.filter(t =>
+              limpiarTexto(t["ID Proyecto"]) === limpiarTexto(idProy) &&
+              String(t["Resumen"]).trim().toLowerCase() !== "true"
+            ).length;
+            contador.textContent  = `${totalCoincid} / ${totalProyecto}`;
+            contador.style.display = "block";
+          }
+        } else {
+          cerrarDropdown();
+          if (contador) contador.style.display = "none";
         }
       } else {
         cerrarDropdown();
         if (contador) contador.style.display = "none";
+        if (!valorOriginal) {
+          if (buscadorPrincipal) buscadorPrincipal.value = "";
+          aplicarFiltros();
+          if (onSincronizar) onSincronizar();
+        }
       }
-    } else {
-      cerrarDropdown();
-      if (contador) contador.style.display = "none";
-      if (!valorOriginal) {
-        if (buscadorPrincipal) buscadorPrincipal.value = "";
-        aplicarFiltros();
-        if (onSincronizar) onSincronizar();
-      }
-    }
+    }, 250); // <-- Retraso de 250 milisegundos.
   };
 
   buscador.onkeydown = function(e) {
