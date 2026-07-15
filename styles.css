@@ -79,41 +79,60 @@
     position: relative;
   }
 
-  .titulo-marco {
+  .titulo-glow-wrap {
     position: relative;
     display: inline-flex;
+    flex-direction: column;
     align-items: center;
+    justify-content: center;
     max-width: 100%;
     min-width: 0;
-    padding: 0.4vh 10px;
+    height: 100%;
+    padding: 0 0 1.6vh;
   }
 
-  .titulo-marco::before,
-  .titulo-marco::after {
+  /* Línea de fondo: atraviesa TODO el header, de punta a punta, bien tenue */
+  .header h1::after {
     content: "";
     position: absolute;
-    width: 8px;
-    height: 100%;
-    border: 2px solid var(--epec-verde-brillante);
-  }
-
-  .titulo-marco::before {
-    top: 0;
     left: 0;
-    border-right: none;
-    border-bottom: none;
+    right: 0;
+    bottom: 1.1vh;
+    height: 3px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, transparent, rgba(0, 176, 149, 0.22) 20%, rgba(0, 176, 149, 0.22) 80%, transparent);
+    pointer-events: none;
   }
 
-  .titulo-marco::after {
-    bottom: 0;
+  /* Línea brillante: ancho exacto del título, en paralelo con la línea de fondo */
+  .titulo-glow-wrap::after {
+    content: "";
+    position: absolute;
+    left: 0;
     right: 0;
-    border-left: none;
-    border-top: none;
+    bottom: 1.1vh;
+    height: 2px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, transparent, var(--epec-verde-brillante) 15%, var(--epec-verde-brillante) 85%, transparent);
+    box-shadow: 0 0 4px 0px rgba(0, 176, 149, 0.5), 0 0 1px rgba(0, 176, 149, 0.85);
+  }
+
+  .titulo-eyebrow {
+    font-size: clamp(0.9vh, 0.85vw, 1.3vh);
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(0, 176, 149, 0.8);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    margin-bottom: 0.3vh;
   }
 
   .titulo-texto {
-    font-size: clamp(1.6vh, 1.55vw, 2.8vh);
-    font-weight: 600;
+    font-size: clamp(1.6vh, 1.55vw, 2.7vh);
+    font-weight: 800;
     letter-spacing: 0.03em;
     text-transform: uppercase;
     color: var(--text-main);
