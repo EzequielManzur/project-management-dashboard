@@ -1907,9 +1907,24 @@ function renderGraficoLineaComparacion(curva) {
   chartLineaComparacion.off("legendselectchanged");
   chartLineaComparacion.on("legendselectchanged", function(params) {
     const tituloElemento = document.getElementById("tituloGraficoComparacion");
+    const cargaActivo   = params.selected["Carga de Tareas"];
     const realActivo    = params.selected["Avance Real"];
     const teoricoActivo = params.selected["Avance Teórico"];
     const ambasActivas  = realActivo && teoricoActivo;
+
+    // Actualizar leyenda explícitamente para que se vea el cambio visual
+    chartLineaComparacion.setOption({
+      legend: {
+          selected: {
+              "Avance Real": realActivo,
+              "Avance Teórico": teoricoActivo,
+              "Carga de Tareas": cargaActivo
+          }
+      },
+      series: [
+          { name: "Carga de Tareas", show: cargaActivo }
+      ]
+    });
 
     if (tituloElemento) {
       if (ambasActivas) {
@@ -1937,7 +1952,8 @@ function renderGraficoLineaComparacion(curva) {
       // 3. Le confirmamos a la configuración original que ambas leyendas están activas y le pasamos los datos
       option.legend.selected = {
         "Avance Real": true,
-        "Avance Teórico": true
+        "Avance Teórico": true,
+        "Carga de Tareas": cargaActivo
       };
       option.series[1].data = dataGapBase;
       option.series[2].data = dataGapNeg;
