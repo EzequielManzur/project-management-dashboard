@@ -286,6 +286,12 @@
     min-width: 10.5vw;
   }
 
+  .filtroBox:has(#selectorResponsable),
+  .filtroBox:has(#gsSelectResponsable),
+  .filtroBox:has(#fsSelectorResponsable) {
+    min-width: 10.5vw;
+  }
+
   .filtroBox:hover {
     border-color: rgba(0, 176, 149, 0.65);
     background: rgba(25, 127, 102, 0.05);
@@ -1388,6 +1394,82 @@
   pointer-events: none;
   padding: 0 2px;
   box-sizing: border-box;
+}
+
+/* El relleno arranca 3px debajo del borde superior (ver .gantt-resumen-progreso),
+   así que el % debe bajar esa misma media-diferencia para quedar centrado
+   respecto al cuadrante de carga y no respecto a la barra completa. */
+.gantt-bar-resumen .gantt-bar-lbl {
+  top: 1.5px;
+}
+
+/* Tarea resumen: estética plana y geométrica — topes verticales gruesos,
+   relleno sólido sin degradados, sin bordes redondeados. */
+.gantt-bar-resumen {
+  border-radius: 0;
+  border-style: solid;
+  border-width: 1px 0 0 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.gantt-resumen-progreso {
+  position: absolute;
+  left: 0;
+  top: 3px;
+  bottom: 0;
+  z-index: 1;
+}
+
+.gantt-resumen-cap {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  z-index: 2;
+}
+
+.gantt-resumen-cap-left {
+  left: 0;
+}
+
+.gantt-resumen-cap-right {
+  right: 0;
+}
+
+/* Conectores de dependencias (Predecesoras): flechas ortogonales finas */
+.gantt-conectores {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.gantt-conector-linea {
+  fill: none;
+  stroke: #3B82F6;
+  stroke-width: 1.5;
+}
+
+.gantt-conectores marker path {
+  fill: #3B82F6;
+}
+
+.gantt-bar-responsable {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  margin: auto;
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+  font-style: italic;
+  color: #fff;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 2;
+  font-family: 'DM Sans', Inter, sans-serif;
 }
 
 .gantt-icon {
