@@ -67,10 +67,12 @@ const STORAGE_KEY = "epec_filtros_v1";
 
 function guardarFiltros() {
   try {
+    const selResponsable = document.getElementById("selectorResponsable");
     const estado = {
-      proyecto: document.getElementById("selectorProyecto").value,
-      grupo:    document.getElementById("selectorGrupo").value,
-      busqueda: document.getElementById("buscadorTareas").value
+      proyecto:    document.getElementById("selectorProyecto").value,
+      grupo:       document.getElementById("selectorGrupo").value,
+      responsable: selResponsable ? selResponsable.value : "Todos",
+      busqueda:    document.getElementById("buscadorTareas").value
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(estado));
   } catch (e) { /* Silencioso: storage deshabilitado o privado */ }
@@ -81,19 +83,25 @@ function restaurarFiltros() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
 
-    const { proyecto, grupo, busqueda } = JSON.parse(raw);
-    const selProy  = document.getElementById("selectorProyecto");
-    const selGrupo = document.getElementById("selectorGrupo");
-    const buscador = document.getElementById("buscadorTareas");
-    const btnX     = document.getElementById("btnLimpiarFiltros");
+    const { proyecto, grupo, responsable, busqueda } = JSON.parse(raw);
+    const selProy        = document.getElementById("selectorProyecto");
+    const selGrupo       = document.getElementById("selectorGrupo");
+    const selResponsable = document.getElementById("selectorResponsable");
+    const buscador       = document.getElementById("buscadorTareas");
+    const btnX           = document.getElementById("btnLimpiarFiltros");
 
     if (proyecto && [...selProy.options].some(o => o.value === proyecto)) {
       selProy.value = proyecto;
       inicializarSelectorGrupo();
+      inicializarSelectorResponsable();
     }
 
     if (grupo && [...selGrupo.options].some(o => o.value === grupo)) {
       selGrupo.value = grupo;
+    }
+
+    if (responsable && selResponsable && [...selResponsable.options].some(o => o.value === responsable)) {
+      selResponsable.value = responsable;
     }
 
     if (busqueda && buscador) {
@@ -168,7 +176,9 @@ async function cargarDashboard() {
 
     inicializarSelectorProyecto();
     inicializarSelectorGrupo();
+    inicializarSelectorResponsable();
     restaurarFiltros();
+    sincronizarCascadaGrupoResponsable();
     aplicarFiltros();
     actualizarBadgeFecha();
 
@@ -197,6 +207,8 @@ function inicializarSelectorProyecto() {
   selectorProyecto.addEventListener("change", () => {
     if (presentacionActiva) detenerPresentacion();
     inicializarSelectorGrupo();
+    inicializarSelectorResponsable();
+    sincronizarCascadaGrupoResponsable();
     aplicarFiltros();
   });
 }
@@ -240,8 +252,105 @@ function inicializarSelectorGrupo() {
 
   selectorGrupo.onchange = () => {
     if (presentacionActiva) detenerPresentacion();
+    sincronizarCascadaGrupoResponsable();
     aplicarFiltros();
   };
+}
+
+function inicializarSelectorResponsable() {
+  const selectorResponsable = document.getElementById("selectorResponsable");
+  const selectorProyecto = document.getElementById("selectorProyecto");
+  const idProyectoSeleccionado = selectorProyecto.value;
+
+  selectorResponsable.innerHTML = "";
+
+  const optionTodos = document.createElement("option");
+  optionTodos.value = "Todos";
+  optionTodos.textContent = "Todos";
+  selectorResponsable.appendChild(optionTodos);
+
+  const responsables = [...new Set(
+    tareas
+      .filter(t => limpiarTexto(t["ID Proyecto"]) === limpiarTexto(idProyectoSeleccionado))
+      .map(t => limpiarTexto(t["Responsable"]))
+      .filter(v => v !== "")
+  )].sort((a, b) => a.localeCompare(b, "es"));
+
+  responsables.forEach(resp => {
+    const option = document.createElement("option");
+    option.value = resp;
+    option.textContent = resp;
+    selectorResponsable.appendChild(option);
+  });
+
+  selectorResponsable.onchange = () => {
+    if (presentacionActiva) detenerPresentacion();
+    sincronizarCascadaGrupoResponsable();
+    aplicarFiltros();
+  };
+}
+
+// ══════════════════════════════════════
+//  CASCADA CRUZADA: Grupo ↔ Responsable
+// ══════════════════════════════════════
+function obtenerResponsablesDeGrupo(idProyecto, grupoId) {
+  return new Set(
+    tareas
+      .filter(t => limpiarTexto(t["ID Proyecto"]) === limpiarTexto(idProyecto))
+      .filter(t => normalizarGrupoId(t["Grupo_ID"]) === grupoId)
+      .map(t => limpiarTexto(t["Responsable"]))
+      .filter(v => v !== "")
+  );
+}
+
+function obtenerGruposDeResponsable(idProyecto, responsable) {
+  return new Set(
+    tareas
+      .filter(t => limpiarTexto(t["ID Proyecto"]) === limpiarTexto(idProyecto))
+      .filter(t => limpiarTexto(t["Responsable"]) === responsable)
+      .map(t => normalizarGrupoId(t["Grupo_ID"]))
+  );
+}
+
+function sincronizarCascadaGrupoResponsable() {
+  const selectorProyecto    = document.getElementById("selectorProyecto");
+  const selectorGrupo       = document.getElementById("selectorGrupo");
+  const selectorResponsable = document.getElementById("selectorResponsable");
+  if (!selectorGrupo || !selectorResponsable || !selectorProyecto) return;
+
+  // No interferir con el bloqueo agresivo del buscador de tareas
+  // (ese flujo ya deja un único grupo habilitado a propósito)
+  if (selectorGrupo.closest('.filtroBox')?.classList.contains('filtro-bloqueado')) return;
+
+  const idProyecto = selectorProyecto.value;
+  const grupoActivo = selectorGrupo.value;
+
+  // ── Grupo seleccionado → despintar Responsables que no tienen tareas ahí ──
+  if (grupoActivo !== "Todos") {
+    const responsablesValidos = obtenerResponsablesDeGrupo(idProyecto, grupoActivo);
+    Array.from(selectorResponsable.options).forEach(opt => {
+      opt.disabled = opt.value !== "Todos" && !responsablesValidos.has(opt.value);
+    });
+    if (selectorResponsable.value !== "Todos" && !responsablesValidos.has(selectorResponsable.value)) {
+      selectorResponsable.value = "Todos";
+    }
+  } else {
+    Array.from(selectorResponsable.options).forEach(opt => { opt.disabled = false; });
+  }
+
+  // ── Responsable seleccionado → despintar Grupos que no tienen tareas suyas ──
+  const responsableActivo = selectorResponsable.value;
+  if (responsableActivo !== "Todos") {
+    const gruposValidos = obtenerGruposDeResponsable(idProyecto, responsableActivo);
+    Array.from(selectorGrupo.options).forEach(opt => {
+      opt.disabled = opt.value !== "Todos" && !gruposValidos.has(opt.value);
+    });
+    if (selectorGrupo.value !== "Todos" && !gruposValidos.has(selectorGrupo.value)) {
+      selectorGrupo.value = "Todos";
+    }
+  } else {
+    Array.from(selectorGrupo.options).forEach(opt => { opt.disabled = false; });
+  }
 }
 
 function resaltarTexto(nombre, textoOriginal) {
@@ -328,14 +437,14 @@ if (!window._ganttToggleListenerActivo) {
 if (!window._ganttColapsarListenerActivo) {
   window._ganttColapsarListenerActivo = true;
   document.addEventListener("click", (e) => {
-    const btn = e.target.closest("[data-grupo-colapsar]");
+    const btn = e.target.closest("[data-colapsar]");
     if (!btn) return;
     e.stopPropagation();
-    const grupoId = btn.dataset.grupoColapsar;
-    if (gruposColapsados.has(grupoId)) {
-      gruposColapsados.delete(grupoId);
+    const nodoId = btn.dataset.colapsar;
+    if (gruposColapsados.has(nodoId)) {
+      gruposColapsados.delete(nodoId);
     } else {
-      gruposColapsados.add(grupoId);
+      gruposColapsados.add(nodoId);
     }
     window._ganttSkipScroll = true;
     renderGantt(tareasFiltradas);
@@ -355,7 +464,7 @@ if (!window._crossFilterClickActivo) {
 
     // Gantt: click en nombre de grupo (panel izquierdo)
     const grupoGanttNombre = e.target.closest(".g-nombre[data-grupo]:not(.g-nombre-ind)");
-    if (grupoGanttNombre && !e.target.closest("[data-grupo-colapsar]")) {
+    if (grupoGanttNombre && !e.target.closest("[data-colapsar]")) {
       if (presentacionActiva) detenerPresentacion();
       filtrarPorGrupoClick(grupoGanttNombre.dataset.grupo);
       return;
@@ -404,6 +513,7 @@ function aplicarFiltros() {
     
     const idProyectoSeleccionado = document.getElementById("selectorProyecto").value;
     const grupoSeleccionado = document.getElementById("selectorGrupo").value;
+    const responsableSeleccionado = document.getElementById("selectorResponsable") ? document.getElementById("selectorResponsable").value : "Todos";
     const textoInput = document.getElementById("buscadorTareas") ? document.getElementById("buscadorTareas").value : "";
     const buscadorTexto = normalizarTextoBusqueda(textoInput);
     
@@ -418,18 +528,20 @@ function aplicarFiltros() {
      const coincideProyecto = limpiarTexto(t["ID Proyecto"]) === limpiarTexto(idProyectoSeleccionado);
      const grupoNormalizado = normalizarGrupoId(t["Grupo_ID"]);
      const coincideGrupo = grupoSeleccionado === "Todos" || grupoNormalizado === grupoSeleccionado;
+     const coincideResponsable = responsableSeleccionado === "Todos" || limpiarTexto(t["Responsable"]) === responsableSeleccionado;
      const nombreTarea = normalizarTextoBusqueda(t["Nombre de tarea"] || t["Nombre"]);
      const coincideBusqueda = buscadorTexto === "" || nombreTarea.includes(buscadorTexto);  
     
-     return coincideProyecto && coincideGrupo && coincideBusqueda;
+     return coincideProyecto && coincideGrupo && coincideResponsable && coincideBusqueda;
     });
   
       // ── NUEVO: Tareas exclusivas para barras (ignora el filtro de Grupo) ──
     const tareasParaBarras = tareas.filter(t => {
      const coincideProyecto = limpiarTexto(t["ID Proyecto"]) === limpiarTexto(idProyectoSeleccionado);
+     const coincideResponsable = responsableSeleccionado === "Todos" || limpiarTexto(t["Responsable"]) === responsableSeleccionado;
      const nombreTarea = normalizarTextoBusqueda(t["Nombre de tarea"] || t["Nombre"]);
      const coincideBusqueda = buscadorTexto === "" || nombreTarea.includes(buscadorTexto);  
-     return coincideProyecto && coincideBusqueda;
+     return coincideProyecto && coincideResponsable && coincideBusqueda;
     });
     tareasParaBarrasActual = tareasParaBarras;
     
@@ -601,14 +713,16 @@ function generarCurvaSDesdeTareas(listaTareas) {
       avanceTeoricoPonderado += duracionHabil * (porcentajeTeoricoHastaFecha / 100);
     });
 
-    // Carga de tareas: cantidad de tareas activas (no finalizadas) en esta fecha
-    let tareasActivas = 0;
+    // Carga de tareas: días hábiles de las tareas activas (no finalizadas) en
+    // esta fecha, como % de los días hábiles totales del proyecto — así una
+    // tarea de un mes pesa más que una de una semana, igual que en Real/Teórico.
+    let duracionHabilActiva = 0;
     tareasPreparadas.forEach(t => {
       if (d >= t.inicio && d <= t.fin && t.porcentaje < 100) {
-        tareasActivas++;
+        duracionHabilActiva += t.duracionHabil;
       }
     });
-    const cargaNormalizada = (tareasActivas / Math.max(tareasPreparadas.length, 1)) * 100;
+    const cargaNormalizada = (duracionHabilActiva / sumaDuraciones) * 100;
 
     curva.push({
       fecha: new Date(d),
@@ -864,9 +978,9 @@ function renderGantt(tareasAMostrar) {
     : "M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3";
   const tituloIconoFullscreen = ganttEstaFullscreen ? "Salir de Pantalla Completa" : "Pantalla Completa";
 
-  const tareasValidas = tareasAMostrar.filter(
-    t => String(t["Resumen"]).trim().toLowerCase() !== "true"
-  );
+  // Ya no filtramos las tareas resumen: se muestran como brackets [----]
+  // que abarcan a sus tareas hijas, igual que en MS Project.
+  const tareasValidas = tareasAMostrar;
 
   if (!tareasValidas.length) {
     contenedor.innerHTML = `<div style="height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding: 2vh;"><div style="width:64px; height:64px; border-radius:50%; background:rgba(107, 114, 128, 0.08); border:2px dashed #6B7280; display:flex; align-items:center; justify-content:center;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></div><span style="color:#6B7280; font-size:1.5vh; font-weight:600; text-align:center;">No se encontraron tareas con los filtros actuales</span></div>`;
@@ -946,37 +1060,75 @@ function renderGantt(tareasAMostrar) {
     return `<div class="gh-cell gh-dia${fds ? ' gh-fds' : ''}" style="width:${DIA_W}px;">${d.getDate()}</div>`;
   }).join('');
 
-  // ── Agrupar tareas ──
-  const gruposMap = {};
-  tareasValidas.forEach(t => {
-    const g = normalizarGrupoId(t["Grupo_ID"]);
-    if (!gruposMap[g]) gruposMap[g] = [];
-    gruposMap[g].push(t);
-  });
+  // ── Construir jerarquía dinámica (grupo → subgrupo → actividad → …) ──
+  // A partir de Nivel_de_esquema, sin importar la profundidad del árbol.
+  // Se arma con una pila: cada tarea cuelga de la última tarea vista con
+  // un nivel menor, igual que hace MS Project internamente.
+  function construirArbol(filas) {
+    const raiz = [];
+    const pila = [];
+    filas.forEach(fila => {
+      const nivel = Number(fila["Nivel_de_esquema"]);
+      const nodo = { fila, hijos: [], nivel };
+      while (pila.length && pila[pila.length - 1].nivel >= nivel) pila.pop();
+      (pila.length ? pila[pila.length - 1].nodo.hijos : raiz).push(nodo);
+      pila.push({ nodo, nivel });
+    });
+    return raiz;
+  }
 
-  const gruposOrdenados = Object.keys(gruposMap).sort((a, b) => {
-    if (a === "Sin Grupo") return 1;
-    if (b === "Sin Grupo") return -1;
-    const na = obtenerNumeroGrupo(a), nb = obtenerNumeroGrupo(b);
-    if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
-    return String(a).localeCompare(String(b));
-  });
+  const grupoSeleccionadoActual = document.getElementById("selectorGrupo")?.value || "Todos";
+  let filasArbol = tareasValidas;
 
-  // ── Calcular altura de fila dinámica ──
-  let totalFilas = 0;
-  gruposOrdenados.forEach(grupoId => {
-    const tareasGrupo = gruposMap[grupoId];
-    if (!tareasGrupo || !tareasGrupo.length) return;
-    totalFilas += 1;              // fila del grupo
-    totalFilas += tareasGrupo.length; // filas de sus tareas
-  });
+  // Cuando se ve "Todos", los niveles superiores con una única tarea son
+  // envoltorios de "proyecto/plan completo" (ej. MDM 2026 tiene DOS niveles
+  // así antes de llegar a los grupos reales) — se descartan en cadena hasta
+  // llegar al primer nivel con más de una tarea, igual que detectar_nivel_grupo
+  // del lado Python.
+  if (grupoSeleccionadoActual === "Todos") {
+    const conteoPorNivel = {};
+    tareasValidas.forEach(t => {
+      const n = Number(t["Nivel_de_esquema"]);
+      if (!isNaN(n)) conteoPorNivel[n] = (conteoPorNivel[n] || 0) + 1;
+    });
+    const nivelesPresentes = Object.keys(conteoPorNivel).map(Number).sort((a, b) => a - b);
+    if (nivelesPresentes.length) {
+      let nivelCorte = nivelesPresentes[0];
+      for (const n of nivelesPresentes) {
+        nivelCorte = n;
+        if (conteoPorNivel[n] > 1) break;
+      }
+      if (nivelCorte !== nivelesPresentes[0]) {
+        filasArbol = tareasValidas.filter(t => Number(t["Nivel_de_esquema"]) >= nivelCorte);
+      }
+    }
+  }
+
+  const bosque = construirArbol(filasArbol);
+
+  // ── Calcular altura de fila dinámica (cuenta todo nodo visible, a cualquier profundidad) ──
+  function contarVisibles(nodos) {
+    let total = 0;
+    nodos.forEach(n => {
+      total += 1;
+      const colapsado = n.hijos.length > 0 && gruposColapsados.has(String(n.fila["Id"]));
+      if (n.hijos.length && !colapsado) total += contarVisibles(n.hijos);
+    });
+    return total;
+  }
+  const totalFilas = contarVisibles(bosque);
 
   const HEADER_H = 32; // altura del header (2 filas de 16px)
   const alturaDisponible = contenedor.clientHeight - HEADER_H;
   const margenSeguridad = totalFilas * 2 + 10;
+  // El piso debe ser >= al "min-height: 30px" que fija .gantt-row en CSS:
+  // si el valor calculado fuera menor, el navegador renderiza cada fila
+  // más alta de lo que este cálculo asume, y ese faltante por fila se
+  // acumula (arrastre progresivo) en todo lo que se posiciona por
+  // "rowIndex * ROW_H" — en particular, los conectores de dependencias.
   const ROW_H = totalFilas > 0
-    ? Math.max(28, Math.floor((alturaDisponible - margenSeguridad) / totalFilas))
-    : 28;
+    ? Math.max(30, Math.floor((alturaDisponible - margenSeguridad) / totalFilas))
+    : 30;
 
   // Tamaños proporcionales a la altura de fila
   const BAR_H_GRUPO = Math.min(Math.round(ROW_H * 0.62), 22);
@@ -999,132 +1151,103 @@ function renderGantt(tareasAMostrar) {
 
   let namesHTML = '';
   let barsHTML = '';
+  // Registra, en el mismo orden en que se emiten las filas, el rango de
+  // fechas de cada una — se usa después para el auto-scroll a "HOY".
+  const filasParaScroll = [];
+  // Geometría (x/ancho/fila/alto de barra) de cada tarea realmente renderizada,
+  // indexada por Id — la usan los conectores de dependencias (Predecesoras)
+  // para saber de dónde a dónde trazar cada flecha.
+  const barGeom = {};
 
-  gruposOrdenados.forEach(grupoId => {
-    const tareas = gruposMap[grupoId];
+  // MS Project/MPXJ ya calcula Comienzo/Fin/%/Duración de las tareas
+  // resumen a partir de sus hijas, así que cada nodo (hoja o resumen) lee
+  // directamente los datos de su propia fila — sin reagregar nada a mano.
+  function renderNodo(nodo, profundidad) {
+    const t = nodo.fila;
+    const esResumen = nodo.hijos.length > 0;
+    const id = String(t["Id"]);
+    const estaColapsado = esResumen && gruposColapsados.has(id);
 
-    const gDates = [];
-    let sumaPos = 0, sumaDur = 0;
-    tareas.forEach(t => {
-      const ini = parseFechaLocal(t["Comienzo"]);
-      const fin = parseFechaLocal(t["Fin"]);
-      if (!ini || !fin) return;
+    const ini = parseFechaLocal(t["Comienzo"]);
+    const fin = parseFechaLocal(t["Fin"]);
+
+    if (ini && fin) {
       ini.setHours(0, 0, 0, 0); fin.setHours(0, 0, 0, 0);
-      
-      const dur = contarDiasHabilesEntre(ini, fin);
-      sumaPos += dur * Number(t["% completado"] || 0);
-      sumaDur += dur;
-      gDates.push(ini, fin);
-    });
-    if (!gDates.length) return;
 
-    const gIni = new Date(Math.min(...gDates.map(f => f.getTime())));
-    const gFin = new Date(Math.max(...gDates.map(f => f.getTime())));
-    const gIniStr = `${String(gIni.getDate()).padStart(2,'0')}/${String(gIni.getMonth()+1).padStart(2,'0')}/${gIni.getFullYear()}`;
-    const gFinStr = `${String(gFin.getDate()).padStart(2,'0')}/${String(gFin.getMonth()+1).padStart(2,'0')}/${gFin.getFullYear()}`;
-    
-    const gPct = sumaDur > 0 ? sumaPos / sumaDur : 0;
-    const gDur = contarDiasHabilesEntre(gIni, gFin);
+      const pct = Number(t["% completado"] || 0);
+      const nombre = capitalizarPrimeraLetra(limpiarTexto(t["Nombre de tarea"] || t["Nombre"]));
+      const responsable = limpiarTexto(t["Responsable"]);
+      const finStr = `${String(fin.getDate()).padStart(2,'0')}/${String(fin.getMonth()+1).padStart(2,'0')}/${fin.getFullYear()}`;
+      const iniStr = `${String(ini.getDate()).padStart(2,'0')}/${String(ini.getMonth()+1).padStart(2,'0')}/${ini.getFullYear()}`;
 
-    // Rescate blindado del nombre del grupo para que no rompa si viene vacío
-    const nombreDelGrupo = (tareas && tareas.length > 0 && tareas[0]["Grupo_Nombre"]) 
-      ? String(tareas[0]["Grupo_Nombre"]).trim() 
-      : "";
-    const esSoloNumero = !isNaN(Number(grupoId));
-    
-    let gLabel = grupoId;
-    if (grupoId === "Sin Grupo") {
-      gLabel = "Sin Grupo";
-    } else if (nombreDelGrupo && nombreDelGrupo.toLowerCase() !== "sin grupo") {
-      gLabel = `${grupoId} - ${nombreDelGrupo}`;
-    } else if (esSoloNumero) {
-      gLabel = `Grupo ${grupoId}`;
-    }
+      const tX = dateToX(ini);
+      const tW = Math.max(DIA_W, dateToX(fin) + DIA_W - tX);
+      const durAMostrar = contarDiasHabilesEntre(ini, fin);
 
-    const gX = dateToX(gIni);
-    const gW = Math.max(DIA_W, dateToX(gFin) + DIA_W - gX);
+      const indent = profundidad * 14;
+      const esRaiz = profundidad === 0;
+      const dataGrupoAttrs = esRaiz ? ` data-grupo="${normalizarGrupoId(t["Grupo_ID"])}"` : '';
 
-    const labelColorG = gPct >= 100 ? "#1a1a1a" : "rgba(255,255,255,0.85)";
-    const labelInsideG = (gW >= 35 && gPct >= 1) ? `<span class="gantt-bar-lbl" style="font-size:${FONT_BAR}px;color:${labelColorG};font-weight:700;">${gPct.toFixed(0)}%</span>` : '';
-    const labelOutsideG = (gW < 35 && gPct >= 1)
-      ? `<span style="position:absolute; left:${gX + gW + 6}px; top:0; bottom:0; margin:auto; display:flex; align-items:center; font-size:${FONT_BAR}px; color:rgba(255,255,255,0.85); z-index:2; pointer-events:none;">${gPct.toFixed(0)}%</span>`
-      : '';
+      // ── FILA NOMBRE (panel izquierdo) ──
+      const trianguloIcon = esResumen
+        ? `<span class="gantt-colapsar" data-colapsar="${id}" style="cursor:pointer;font-size:9px;color:rgba(255,255,255,0.5);margin-right:4px;flex-shrink:0;transition: color 0.2s ease;user-select:none;">${estaColapsado ? '▶' : '▼'}</span>`
+        : '';
+      const claseNombre = esResumen ? 'g-nombre' : 'g-nombre g-nombre-ind';
+      const claseFila = esResumen ? 'gantt-row-grupo' : 'gantt-row-tarea';
 
-    // FILA GRUPO — altura dinámica aplicada con inline style
-    const estaColapsado = gruposColapsados.has(grupoId);
-    const trianguloIcon = estaColapsado ? '▶' : '▼';
-    namesHTML += `<div class="gantt-row gantt-row-grupo" style="height:${ROW_H}px;">
-        <span class="g-nombre" data-tipo="nombre" data-label="${gLabel}" data-grupo="${grupoId}" style="font-size:${FONT_NOMBRE};">
-          <span class="gantt-colapsar" data-grupo-colapsar="${grupoId}" style="
-            cursor:pointer;
-            font-size:9px;
-            color:rgba(255,255,255,0.5);
-            margin-right:4px;
-            flex-shrink:0;
-            transition: color 0.2s ease;
-            user-select:none;
-          ">${trianguloIcon}</span>${gLabel}
-        </span>
-        <span class="g-dur">${gDur}d</span>
-      </div>`;
+      namesHTML += `<div class="gantt-row ${claseFila}" style="height:${ROW_H}px;">
+          <span class="${claseNombre}" data-tipo="nombre" data-label="${nombre}"${dataGrupoAttrs} style="font-size:${FONT_NOMBRE};padding-left:${indent}px;">${trianguloIcon}${nombre}</span>
+          <span class="g-dur">${durAMostrar}d</span>
+        </div>`;
 
-    barsHTML += `<div class="gantt-row gantt-row-grupo" style="height:${ROW_H}px;">
-        <div class="gantt-bar gantt-bar-grupo" style="left:${gX}px;width:${gW}px;height:${BAR_H_GRUPO}px;font-size:${FONT_BAR}px;" data-tipo="grupo" data-label="${gLabel}" data-grupo="${grupoId}" data-inicio="${gIniStr}" data-fin="${gFinStr}" data-pct="${gPct.toFixed(1)}">
-          <div class="gantt-bar-prog gantt-prog-grupo" style="width:${gW * gPct / 100}px;"></div>
-          ${labelInsideG}
-        </div>
-        ${labelOutsideG}
-      </div>`;
+      // ── FILA BARRA (panel derecho) ──
+      // Alto "visual" de la barra en esta fila, usado sólo para calcular por
+      // dónde entran/salen las flechas de dependencias (no afecta el dibujo).
+      let alturaBarraConector = BAR_H_TAREA;
 
-    if (!gruposColapsados.has(grupoId)) [...tareas]
-      .sort((a, b) => {
-        const fa = parseFechaLocal(a["Comienzo"]);
-        const fb = parseFechaLocal(b["Comienzo"]);
-        if (!fa || !fb) return 0;
-        return fa.getTime() - fb.getTime();
-      })
-      .forEach(t => {
-        const ini = parseFechaLocal(t["Comienzo"]);
-        const fin = parseFechaLocal(t["Fin"]);
-        if (!ini || !fin) return;
-        ini.setHours(0, 0, 0, 0); fin.setHours(0, 0, 0, 0);
+      if (esResumen) {
+        alturaBarraConector = BAR_H_GRUPO;
+        // Tarea resumen: barra plana y geométrica (topes verticales gruesos +
+        // relleno sólido, sin bordes redondeados), coloreada según estado
+        // (mismo criterio que las tareas: No iniciada / En progreso / Finalizada).
+        const { borde: colorBordeG, progreso: colorProgG } = colorEstado(pct);
+        const labelColorG = pct >= 100 ? "#000" : "#fff";
+        const labelInsideG = (tW >= 35 && pct >= 1) ? `<span class="gantt-bar-lbl" style="font-size:${FONT_BAR}px;color:${labelColorG};font-weight:700;">${pct.toFixed(0)}%</span>` : '';
+        const labelOutsideG = (tW < 35 && pct >= 1)
+          ? `<span style="position:absolute; left:${tX + tW + 6}px; top:0; bottom:0; margin:auto; display:flex; align-items:center; font-size:${FONT_BAR}px; color:#fff; font-weight:700; z-index:2; pointer-events:none;">${pct.toFixed(0)}%</span>`
+          : '';
 
-        const pct = Number(t["% completado"] || 0);
-        const nombre = capitalizarPrimeraLetra(limpiarTexto(t["Nombre de tarea"] || t["Nombre"]));
-        const finStr = `${String(fin.getDate()).padStart(2,'0')}/${String(fin.getMonth()+1).padStart(2,'0')}/${fin.getFullYear()}`;
-        const iniStr = `${String(ini.getDate()).padStart(2,'0')}/${String(ini.getMonth()+1).padStart(2,'0')}/${ini.getFullYear()}`;
-
-        const tX = dateToX(ini);
-        const tW = Math.max(DIA_W, dateToX(fin) + DIA_W - tX);
-
+        barsHTML += `<div class="gantt-row ${claseFila}" style="height:${ROW_H}px;">
+            <div class="gantt-bar gantt-bar-resumen" style="left:${tX}px;width:${tW}px;height:${BAR_H_GRUPO}px;font-size:${FONT_BAR}px;border-color:${colorBordeG};" data-tipo="grupo" data-label="${nombre}"${dataGrupoAttrs} data-inicio="${iniStr}" data-fin="${finStr}" data-pct="${pct.toFixed(1)}">
+              <span class="gantt-resumen-progreso" style="width:${tW * pct / 100}px;background:${colorProgG};"></span>
+              <span class="gantt-resumen-cap gantt-resumen-cap-left" style="background:${colorBordeG};"></span>
+              <span class="gantt-resumen-cap gantt-resumen-cap-right" style="background:${colorBordeG};"></span>
+              ${labelInsideG}
+            </div>
+            ${labelOutsideG}
+          </div>`;
+      } else {
         const textoDuracion = String(t["Duración"] || "1").replace(",", ".");
         const duracionNumerica = parseFloat(textoDuracion.replace(/[^\d.-]/g, ''));
         const esHito = duracionNumerica === 0;
 
-        const durAMostrar = esHito ? 0 : contarDiasHabilesEntre(ini, fin);
-
-        // FILA TAREA nombre — altura dinámica
-        namesHTML += `<div class="gantt-row gantt-row-tarea" style="height:${ROW_H}px;">
-            <span class="g-nombre g-nombre-ind" data-tipo="nombre" data-label="${nombre}" style="font-size:${FONT_NOMBRE};">${nombre}</span>
-            <span class="g-dur">${durAMostrar}d</span>
-          </div>`;
-
         if (esHito) {
+          alturaBarraConector = 14;
           const mitadDia = DIA_W / 2;
-          const leftRombo = tX + mitadDia - 7; 
+          const leftRombo = tX + mitadDia - 7;
           const colorRombo = "#FFC107";
           const bordeRombo = "#B38700";
 
-          const espacioRestante = totalW - leftRombo;
-          const posicionTexto = espacioRestante < 75 
-            ? `left:${leftRombo - 8}px; transform: translateX(-100%);` 
-            : `left:${leftRombo + 22}px;`;
+          const responsableHTML = (responsable && responsable !== "Sin Asignar")
+            ? `<span class="gantt-bar-responsable" style="left:${leftRombo + 22}px;">${responsable}</span>`
+            : '';
 
           // FILA HITO — altura dinámica
           barsHTML += `<div class="gantt-row gantt-row-tarea" style="height:${ROW_H}px;">
               <div style="position:absolute; left:${leftRombo}px; top:50%; margin-top:-7px; width:14px; height:14px; background-color:${colorRombo}; border:2px solid ${bordeRombo}; transform:rotate(45deg); z-index:4; cursor:pointer; box-shadow: 0 0 8px ${colorRombo}80;" data-tipo="tarea" data-label="${nombre} (Hito)" data-inicio="${iniStr}" data-fin="${finStr}" data-pct="${pct}" data-color="${colorRombo}"></div>
+              ${responsableHTML}
             </div>`;
-            
+
         } else {
           const { borde: colorBorde, fondo: colorFondo, progreso: colorProg } = colorEstado(pct);
 
@@ -1132,16 +1255,22 @@ function renderGantt(tareasAMostrar) {
           const labelColor = pct >= 100 ? "#1a1a1a" : "rgba(255,255,255,0.85)";
           const pctRedondeado = Math.round(pct);
           const labelInsideT = (tW >= 35 && !esBarra1Dia && pctRedondeado >= 1) ? `<span class="gantt-bar-lbl" style="font-size:${FONT_BAR}px;color:${labelColor};font-weight:700;">${pctRedondeado}%</span>` : '';
-          
+
           let labelOutsideT = '';
+          let responsableLeft = tX + tW + 6;
           if ((tW < 35 || esBarra1Dia) && pctRedondeado >= 1) {
             const espacioRestanteT = totalW - (tX + tW);
             if (espacioRestanteT < 30) {
               labelOutsideT = `<span style="position:absolute; left:${tX - 6}px; transform: translateX(-100%); top:0; bottom:0; margin:auto; display:flex; align-items:center; font-size:${FONT_BAR}px; color:rgba(255,255,255,0.85); z-index:2; pointer-events:none; font-family:'DM Sans',Inter,sans-serif;">${pctRedondeado}%</span>`;
             } else {
               labelOutsideT = `<span style="position:absolute; left:${tX + tW + 6}px; top:0; bottom:0; margin:auto; display:flex; align-items:center; font-size:${FONT_BAR}px; color:rgba(255,255,255,0.85); z-index:2; pointer-events:none; font-family:'DM Sans',Inter,sans-serif;">${pctRedondeado}%</span>`;
+              responsableLeft = tX + tW + 6 + 30;
             }
           }
+
+          const responsableHTML = (responsable && responsable !== "Sin Asignar")
+            ? `<span class="gantt-bar-responsable" style="left:${responsableLeft}px;">${responsable}</span>`
+            : '';
 
           // FILA TAREA barra — altura dinámica
           barsHTML += `<div class="gantt-row gantt-row-tarea" style="height:${ROW_H}px;">
@@ -1150,10 +1279,107 @@ function renderGantt(tareasAMostrar) {
                 ${labelInsideT}
               </div>
               ${labelOutsideT}
+              ${responsableHTML}
             </div>`;
         }
-      });
+      }
+
+      barGeom[claveTareaConector(t["ID Proyecto"], t["Id"])] = { left: tX, right: tX + tW, rowIndex: filasParaScroll.length, h: alturaBarraConector };
+      filasParaScroll.push({ index: filasParaScroll.length, ini: new Date(ini), fin: new Date(fin) });
+
+      if (esResumen && !estaColapsado) {
+        nodo.hijos.forEach(h => renderNodo(h, profundidad + 1));
+      }
+    } else if (esResumen && !estaColapsado) {
+      // Fila sin fechas válidas: no se dibuja, pero sus hijas sí.
+      nodo.hijos.forEach(h => renderNodo(h, profundidad));
+    }
+  }
+
+  bosque.forEach(raiz => renderNodo(raiz, 0));
+
+  // ══════════════════════════════════════
+  //  CONECTORES DE DEPENDENCIAS (Predecesoras)
+  //  Rutas ortogonales (90°) desde el extremo derecho (Fin) de la tarea
+  //  origen hasta la tarea destino:
+  //   - Caso A (sin colisión horizontal): baja recto y gira para entrar
+  //     perpendicularmente por el borde superior (o inferior, si el
+  //     destino está más arriba) de la barra destino.
+  //   - Caso B (giro en "U"): cuando el destino queda a la izquierda del
+  //     punto de salida, rodea por detrás/debajo (o arriba) de la barra
+  //     origen y entra perpendicularmente por su extremo izquierdo.
+  // ══════════════════════════════════════
+  function construirRutaConector(origen, destino) {
+    const JOG = 14;
+    const ENTRY = 6; // margen fijo de entrada, para que el "escalón" sea siempre igual
+    const exitX = origen.right;
+    const exitY = origen.rowIndex * ROW_H + ROW_H / 2;
+    const mismaFila = destino.rowIndex === origen.rowIndex;
+    const haciaAbajo = destino.rowIndex >= origen.rowIndex;
+    const destTop = destino.rowIndex * ROW_H + (ROW_H - destino.h) / 2;
+    const destBottom = destTop + destino.h;
+    const destCenterY = destino.rowIndex * ROW_H + ROW_H / 2;
+
+    // Caso A: el descenso recto desde "exitX" cae dentro (o antes) del
+    // ancho de la barra destino, así que un giro a la derecha alcanza
+    // para entrar por su borde superior/inferior. El punto de entrada usa
+    // siempre el mismo margen fijo (no depende de "exitX") para que la
+    // escalera de conectores quede pareja, sin desfases que se acumulen.
+    if (!mismaFila && exitX <= destino.right) {
+      const entryX = Math.min(destino.left + ENTRY, destino.right - 2);
+      const bordeY = haciaAbajo ? destTop : destBottom;
+      // El "codo" horizontal debe quedar dentro del margen libre que ya
+      // existe entre el borde de la fila y el borde de la barra destino:
+      // si se pasa de ahí, la línea invade visualmente la fila vecina.
+      const margenLibre = Math.max(1, (ROW_H - destino.h) / 2 - 1);
+      const GAP = Math.min(5, margenLibre);
+      const midY = haciaAbajo ? bordeY - GAP : bordeY + GAP;
+      return `M ${exitX} ${exitY} L ${exitX} ${midY} L ${entryX} ${midY} L ${entryX} ${bordeY}`;
+    }
+
+    // Caso B: el destino queda a la izquierda del punto de salida — hay
+    // que rodear por detrás/debajo (o arriba) de la barra origen y entrar
+    // centrado verticalmente por el extremo izquierdo de la barra destino.
+    // El rodeo se mantiene dentro del margen libre de la propia fila
+    // origen (nunca cruza a la fila siguiente), para que no pise otra barra.
+    const margenLibreOrigen = Math.max(1, (ROW_H - origen.h) / 2 - 1);
+    const GAP_RODEO = Math.min(4, margenLibreOrigen);
+    const filaOrigenTop = origen.rowIndex * ROW_H;
+    const filaOrigenBottom = filaOrigenTop + ROW_H;
+    const yRodeo = haciaAbajo ? filaOrigenBottom - GAP_RODEO : filaOrigenTop + GAP_RODEO;
+    const xRodeo = destino.left - JOG;
+    return `M ${exitX} ${exitY} L ${exitX} ${yRodeo} L ${xRodeo} ${yRodeo} L ${xRodeo} ${destCenterY} L ${destino.left} ${destCenterY}`;
+  }
+
+  let conectoresHTML = '';
+  filasArbol.forEach(t => {
+    const predRaw = limpiarTexto(t["Predecesoras"]);
+    if (!predRaw) return;
+    const destino = barGeom[claveTareaConector(t["ID Proyecto"], t["Id"])];
+    if (!destino) return;
+    predRaw.split(",").forEach(p => {
+      const idOrigenRaw = limpiarTexto(p);
+      if (!idOrigenRaw) return;
+      // Las predecesoras de MPXJ siempre son del mismo archivo .mpp, así
+      // que la tarea origen está en el mismo "ID Proyecto" que el destino.
+      const origen = barGeom[claveTareaConector(t["ID Proyecto"], idOrigenRaw)];
+      if (!origen || origen === destino) return;
+      const ruta = construirRutaConector(origen, destino);
+      conectoresHTML += `<path d="${ruta}" class="gantt-conector-linea" marker-end="url(#flechaConectorDep)"></path>`;
+    });
   });
+
+  const alturaTotalConectores = totalFilas * ROW_H;
+  const conectoresSVG = conectoresHTML
+    ? `<svg class="gantt-conectores" width="${totalW}" height="${alturaTotalConectores}" viewBox="0 0 ${totalW} ${alturaTotalConectores}">
+        <defs>
+          <marker id="flechaConectorDep" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 Z"></path>
+          </marker>
+        </defs>
+        ${conectoresHTML}
+      </svg>`
+    : '';
 
   contenedor.innerHTML = `
     
@@ -1197,6 +1423,7 @@ function renderGantt(tareasAMostrar) {
           ${fdsStripes}
           ${hoyLine}
           ${barsHTML}
+          ${conectoresSVG}
         </div>
       </div>
     </div>
@@ -1458,56 +1685,15 @@ function renderGantt(tareasAMostrar) {
       }
 
       // ── EJE Y: bajar hasta la primera fila que abarque HOY ──
-      // Recorremos las filas del panel izquierdo en orden DOM
+      // filasParaScroll fue completado en el mismo orden en que se
+      // emitieron las filas del DOM, así que el índice coincide 1 a 1.
       const todasLasFilas = lb.querySelectorAll(".gantt-row");
       let filaObjetivo = null;
-      let filaIndex = 0;
-      for (const grupoId of gruposOrdenados) {
-        const tareasGrupo = gruposMap[grupoId];
-        if (!tareasGrupo) continue;
-
-        // Fila del grupo
-        const gDates = [];
-        tareasGrupo.forEach(t => {
-          const ini = parseFechaLocal(t["Comienzo"]);
-          const fin = parseFechaLocal(t["Fin"]);
-          if (ini) gDates.push(ini);
-          if (fin) gDates.push(fin);
-        });
-
-        filaIndex++; // fila del grupo
-
-        if (gDates.length) {
-          const gIni = new Date(Math.min(...gDates.map(f => f.getTime())));
-          const gFin = new Date(Math.max(...gDates.map(f => f.getTime())));
-          gIni.setHours(0,0,0,0); gFin.setHours(0,0,0,0);
-          if (hoy >= gIni && hoy <= gFin) {
-            filaObjetivo = todasLasFilas[filaIndex - 1];
-            break;
-          }
+      for (const f of filasParaScroll) {
+        if (hoy >= f.ini && hoy <= f.fin) {
+          filaObjetivo = todasLasFilas[f.index];
+          break;
         }
-
-        // Filas de tareas del grupo
-        const tareasOrdenadas = [...tareasGrupo].sort((a, b) => {
-          const fa = parseFechaLocal(a["Comienzo"]);
-          const fb = parseFechaLocal(b["Comienzo"]);
-          if (!fa || !fb) return 0;
-          return fa.getTime() - fb.getTime();
-        });
-
-        for (const t of tareasOrdenadas) {
-          const ini = parseFechaLocal(t["Comienzo"]);
-          const fin = parseFechaLocal(t["Fin"]);
-          filaIndex++;
-          if (!ini || !fin) continue;
-          ini.setHours(0,0,0,0); fin.setHours(0,0,0,0);
-          if (hoy >= ini && hoy <= fin) {
-            filaObjetivo = todasLasFilas[filaIndex - 1];
-            break;
-          }
-        }
-
-        if (filaObjetivo) break;
       }
 
       if (filaObjetivo) {
@@ -2547,6 +2733,7 @@ function renderGraficoBarras(tareasFiltradas) {
       } else {
         selectorGrupo.value = grupoClickeado;
       }
+      sincronizarCascadaGrupoResponsable();
       aplicarFiltros();
     });
   }, 300);
@@ -2896,6 +3083,21 @@ function limpiarTexto(valor) {
   return String(valor).trim();
 }
 
+// El CSV puede exportar "Id" como float ("12.0") si pandas coaccionó la
+// columna por algún NaN intermedio; normalizamos vía Number() para que
+// coincida con los ids limpios ("12") que vienen en "Predecesoras".
+function normalizarIdConector(valor) {
+  const n = Number(valor);
+  return Number.isFinite(n) ? String(n) : String(valor).trim();
+}
+
+// Cada .mpp numera sus tareas desde 1, así que el mismo "Id" se repite entre
+// proyectos distintos en la vista unificada — hay que namespacear por
+// "ID Proyecto" para no mezclar tareas de proyectos diferentes.
+function claveTareaConector(idProyecto, id) {
+  return `${limpiarTexto(idProyecto)}::${normalizarIdConector(id)}`;
+}
+
 function normalizarTextoBusqueda(texto) {
   if (!texto) return "";
   return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
@@ -3103,6 +3305,7 @@ async function generarResumenEjecutivo() {
       const dias = Math.round((fin - hoy) / (1000 * 60 * 60 * 24));
       return {
         nombre: capitalizarPrimeraLetra(limpiarTexto(t["Nombre de tarea"] || t["Nombre"])),
+        responsable: limpiarTexto(t["Responsable"]) || "Sin Asignar",
         dias
       };
     }).sort((a, b) => a.dias - b.dias);
@@ -3356,10 +3559,12 @@ async function exportarPDF() {
         if (badge)   badge.style.display   = "none";
 
         // FIX: html2canvas no soporta el selector :has(), forzamos el ancho a mano
-        const filtroProyectoClon = clonedDoc.getElementById("selectorProyecto")?.closest(".filtroBox");
-        const filtroGrupoClon    = clonedDoc.getElementById("selectorGrupo")?.closest(".filtroBox");
-        if (filtroProyectoClon) filtroProyectoClon.style.minWidth = "9.5vw";
-        if (filtroGrupoClon)    filtroGrupoClon.style.minWidth = "10.5vw";
+        const filtroProyectoClon    = clonedDoc.getElementById("selectorProyecto")?.closest(".filtroBox");
+        const filtroGrupoClon       = clonedDoc.getElementById("selectorGrupo")?.closest(".filtroBox");
+        const filtroResponsableClon = clonedDoc.getElementById("selectorResponsable")?.closest(".filtroBox");
+        if (filtroProyectoClon)    filtroProyectoClon.style.minWidth = "9.5vw";
+        if (filtroGrupoClon)       filtroGrupoClon.style.minWidth = "10.5vw";
+        if (filtroResponsableClon) filtroResponsableClon.style.minWidth = "10.5vw";
 
         const selects = clonedDoc.querySelectorAll("select");
         selects.forEach(select => {
@@ -3667,8 +3872,9 @@ function limpiarFiltros() {
   if (btnLimpiar) btnLimpiar.classList.remove("visible");
   if (listaSugerencias) listaSugerencias.style.display = "none";
 
-  const selectorProyecto = document.getElementById("selectorProyecto");
-  const selectorGrupo    = document.getElementById("selectorGrupo");
+  const selectorProyecto    = document.getElementById("selectorProyecto");
+  const selectorGrupo       = document.getElementById("selectorGrupo");
+  const selectorResponsable = document.getElementById("selectorResponsable");
 
   selectorProyecto.disabled = false;
   selectorProyecto.closest('.filtroBox')?.classList.remove('filtro-bloqueado');
@@ -3677,7 +3883,11 @@ function limpiarFiltros() {
   selectorGrupo.closest('.filtroBox')?.classList.remove('filtro-bloqueado');
   Array.from(selectorGrupo.options).forEach(opt => { opt.disabled = false; });
 
+  if (selectorResponsable) selectorResponsable.value = "Todos";
+
   inicializarSelectorGrupo();
+  inicializarSelectorResponsable();
+  sincronizarCascadaGrupoResponsable();
   const contadorEl = document.getElementById("contadorTareas");
   if (contadorEl) contadorEl.style.display = "none";
   aplicarFiltros();
@@ -3711,6 +3921,9 @@ function filtrarPorTareaClick(nombreTarea) {
     selectorProyecto.disabled = true;
     selectorProyecto.closest('.filtroBox')?.classList.add('filtro-bloqueado');
     selectorGrupo.closest('.filtroBox')?.classList.add('filtro-bloqueado');
+
+    const selectorResponsable = document.getElementById("selectorResponsable");
+    if (selectorResponsable) selectorResponsable.value = "Todos";
   }
 
   aplicarFiltros();
@@ -3723,6 +3936,7 @@ function filtrarPorGrupoClick(grupoId) {
   } else {
     selectorGrupo.value = grupoId;
   }
+  sincronizarCascadaGrupoResponsable();
   aplicarFiltros();
 }
 
@@ -4098,6 +4312,8 @@ function irAProyecto(idProy) {
   if (!selector) return;
   selector.value = idProy;
   inicializarSelectorGrupo();
+  inicializarSelectorResponsable();
+  sincronizarCascadaGrupoResponsable();
   aplicarFiltros();
   document.getElementById("vistaComparativa").style.display = "none";
 }
@@ -4125,6 +4341,7 @@ function avanzarProyectoPresentacion() {
   selectorProyecto.value = selectorProyecto.options[presentacionIndiceProyecto].value;
 
   inicializarSelectorGrupo();
+  inicializarSelectorResponsable();
   presentacionIndice = 0;
 
   const selectorGrupo = document.getElementById("selectorGrupo");
@@ -4132,6 +4349,7 @@ function avanzarProyectoPresentacion() {
     selectorGrupo.value = selectorGrupo.options[0].value;
   }
 
+  sincronizarCascadaGrupoResponsable();
   aplicarFiltros();
 }
 
