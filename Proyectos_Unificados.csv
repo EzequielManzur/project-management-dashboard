@@ -1,0 +1,37 @@
+ID Proyecto,Id,Nombre de tarea,Duración,Comienzo,Fin,Fin Real Efectivo,Resumen,% completado,Nivel_de_esquema,Responsable,Predecesoras,Grupo_ID,Grupo_Nombre
+PORTAL DE REPORTES,4,1 - Relevamiento,14,2026-03-02,2026-03-19,,True,100.0,1,,,1,Relevamiento
+PORTAL DE REPORTES,1,Entrevistas con áreas usuarias,6,2026-03-02,2026-03-09,2026-03-09,False,100,2,M. Duarte,,1,Relevamiento
+PORTAL DE REPORTES,2,Documento de requerimientos,5,2026-03-10,2026-03-16,2026-03-16,False,100,2,L. Ferrero,1,1,Relevamiento
+PORTAL DE REPORTES,3,Validación con dirección,3,2026-03-17,2026-03-19,2026-03-20,False,100,2,S. Ocampo,2,1,Relevamiento
+PORTAL DE REPORTES,9,2 - Desarrollo,42,2026-03-20,2026-05-18,,True,97.5,1,,,2,Desarrollo
+PORTAL DE REPORTES,5,Modelo de datos,8,2026-03-20,2026-03-31,2026-03-31,False,100,2,C. Iriarte,,2,Desarrollo
+PORTAL DE REPORTES,6,Capa de extracción,12,2026-04-01,2026-04-16,2026-04-17,False,100,2,N. Salvat,5,2,Desarrollo
+PORTAL DE REPORTES,7,Vistas y tableros,15,2026-04-17,2026-05-07,2026-05-07,False,100,2,P. Quiroga,6,2,Desarrollo
+PORTAL DE REPORTES,8,Pruebas integradas,7,2026-05-08,2026-05-18,,False,85,2,A. Rivas,7,2,Desarrollo
+PORTAL DE REPORTES,12,3 - Cierre,7,2026-05-19,2026-05-27,,True,22.9,1,,,3,Cierre
+PORTAL DE REPORTES,10,Manual de usuario,4,2026-05-19,2026-05-22,,False,40,2,L. Ferrero,,3,Cierre
+PORTAL DE REPORTES,11,Capacitación,3,2026-05-25,2026-05-27,,False,0,2,S. Ocampo,10,3,Cierre
+MIGRACIÓN DE INVENTARIO,3,1 - Planificación,9,2026-05-04,2026-05-14,,True,100.0,1,,,1,Planificación
+MIGRACIÓN DE INVENTARIO,1,Alcance y cronograma,5,2026-05-04,2026-05-08,2026-05-08,False,100,2,M. Duarte,,1,Planificación
+MIGRACIÓN DE INVENTARIO,2,Definición de criticidad,4,2026-05-11,2026-05-14,2026-05-14,False,100,2,L. Ferrero,1,1,Planificación
+MIGRACIÓN DE INVENTARIO,9,2 - Migración,57,2026-05-15,2026-08-03,,True,73.9,1,,,2,Migración
+MIGRACIÓN DE INVENTARIO,4,Limpieza de maestros,14,2026-05-15,2026-06-03,2026-06-03,False,100,2,J. Beltrán,,2,Migración
+MIGRACIÓN DE INVENTARIO,5,Carga piloto,10,2026-06-04,2026-06-17,2026-06-17,False,100,2,C. Iriarte,4,2,Migración
+MIGRACIÓN DE INVENTARIO,6,Validación de piloto,6,2026-06-18,2026-06-25,2026-06-26,False,100,2,N. Salvat,5,2,Migración
+MIGRACIÓN DE INVENTARIO,7,Carga masiva,18,2026-06-26,2026-07-21,,False,60,2,P. Quiroga,6,2,Migración
+MIGRACIÓN DE INVENTARIO,8,Conciliación de saldos,9,2026-07-22,2026-08-03,,False,15,2,A. Rivas,7,2,Migración
+MIGRACIÓN DE INVENTARIO,13,3 - Puesta en marcha,18,2026-08-04,2026-08-27,,True,0.0,1,,,3,Puesta en marcha
+MIGRACIÓN DE INVENTARIO,10,Ambiente productivo,6,2026-08-04,2026-08-11,,False,0,2,L. Ferrero,,3,Puesta en marcha
+MIGRACIÓN DE INVENTARIO,11,Marcha blanca,10,2026-08-12,2026-08-25,,False,0,2,S. Ocampo,10,3,Puesta en marcha
+MIGRACIÓN DE INVENTARIO,12,Cierre y acta,2,2026-08-26,2026-08-27,,False,0,2,J. Beltrán,11,3,Puesta en marcha
+TABLERO DE MANTENIMIENTO,4,1 - Diagnóstico,15,2026-08-10,2026-08-28,,True,61.3,1,,,1,Diagnóstico
+TABLERO DE MANTENIMIENTO,1,Inventario de fuentes,5,2026-08-10,2026-08-14,2026-08-14,False,100,2,M. Duarte,,1,Diagnóstico
+TABLERO DE MANTENIMIENTO,2,Análisis de calidad de datos,7,2026-08-17,2026-08-25,,False,60,2,L. Ferrero,1,1,Diagnóstico
+TABLERO DE MANTENIMIENTO,3,Informe de brechas,3,2026-08-26,2026-08-28,,False,0,2,S. Ocampo,2,1,Diagnóstico
+TABLERO DE MANTENIMIENTO,8,2 - Construcción,27,2026-08-31,2026-10-06,,True,0.0,1,,,2,Construcción
+TABLERO DE MANTENIMIENTO,5,Diseño de indicadores,6,2026-08-31,2026-09-07,,False,0,2,C. Iriarte,,2,Construcción
+TABLERO DE MANTENIMIENTO,6,Automatización de carga,12,2026-09-08,2026-09-23,,False,0,2,N. Salvat,5,2,Construcción
+TABLERO DE MANTENIMIENTO,7,Prototipo navegable,9,2026-09-24,2026-10-06,,False,0,2,P. Quiroga,6,2,Construcción
+TABLERO DE MANTENIMIENTO,11,3 - Validación,9,2026-10-07,2026-10-19,,True,0.0,1,,,3,Validación
+TABLERO DE MANTENIMIENTO,9,Revisión con referentes,5,2026-10-07,2026-10-13,,False,0,2,M. Duarte,,3,Validación
+TABLERO DE MANTENIMIENTO,10,Ajustes finales,4,2026-10-14,2026-10-19,,False,0,2,L. Ferrero,9,3,Validación

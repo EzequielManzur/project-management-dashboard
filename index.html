@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Management Dashboard — Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=20260827e">
+</head>
+<body>
+
+  <!-- SPLASH SCREEN -->
+  <div id="splashScreen">
+    <div id="splashLogo" style="color:#00B095;font:800 42px 'DM Sans',Inter,sans-serif;letter-spacing:1px;">Project&nbsp;Dashboard</div>
+  </div>
+
+  <header class="header">
+    <span class="logoEpec" style="display:flex;align-items:center;color:#00B095;font:800 20px 'DM Sans',Inter,sans-serif;white-space:nowrap;">Project&nbsp;Dashboard</span>
+  
+    <h1>
+      <button type="button" id="tituloTrigger" class="titulo-glow-wrap titulo-trigger" aria-haspopup="listbox" aria-expanded="false">
+        <span class="titulo-eyebrow">Estado General del Proyecto</span>
+        <span class="titulo-trigger-row">
+          <span id="tituloDashboard" class="titulo-texto"></span>
+          <svg class="titulo-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </span>
+      </button>
+      <ul id="tituloMenu" class="titulo-menu" role="listbox" hidden></ul>
+    </h1>
+
+    <div class="header-controls">
+        <div class="filtroBox" hidden>
+          <label for="selectorProyecto">ID Proyecto</label>
+          <select id="selectorProyecto">...</select>
+        </div>
+
+        <div class="filtroBox">
+          <label for="selectorGrupo">N° de Grupo</label>
+          <select id="selectorGrupo">...</select>
+        </div>
+
+        <div class="filtroBox">
+          <label for="selectorResponsable">Responsable</label>
+          <select id="selectorResponsable">...</select>
+        </div>
+
+        <div class="filtroBox buscador-box">
+          <label for="buscadorTareas">Buscar</label>
+          <div class="buscador-input-container">
+            <input type="text" id="buscadorTareas" placeholder="Buscá y Enter...
+            " autocomplete="off">
+            <button id="btnLimpiarFiltros" data-tooltip="Limpiar búsqueda">✕</button>
+          </div>
+          <ul id="listaSugerencias" class="sugerencias-dropdown" style="display: none;"></ul>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="dashboard">
+
+    <section class="bloque bloque-kpis">
+      <h2 class="tituloBloque">Resumen del Proyecto</h2>
+      <div class="cards">
+        <div class="card" id="cardSemaforo"></div>
+        <div class="card" id="cardAvance"></div>
+        <div class="card" id="cardDesvio"></div>
+        <div class="card" id="cardCantidad"></div>
+        <div class="card" id="cardDuracion"></div>
+        <div class="card" id="cardDias"></div>
+        <div class="card" id="cardFin"></div>
+      </div>
+    </section>
+
+    <section class="bloque bloque-analitica">
+      <h2 class="tituloBloque tituloBloque-conIconos">
+        <div class="tituloBloque-icons">
+          <button id="btnActualizar" type="button" data-tooltip="Actualizar datos">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+          </button>
+          <button id="btnLimpiarTodosFiltros" type="button" onclick="limpiarFiltros()" data-tooltip="Limpiar filtros" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+              <line x1="18" y1="1" x2="6" y2="23"></line>
+            </svg>
+          </button>
+          <div class="filtros-sep"></div>
+          <button id="btnComparativa" type="button" onclick="toggleVistaComparativa()" data-tooltip="Vista comparativa">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+            </svg>
+          </button>
+          <button id="btnPresentacion" type="button" onclick="togglePresentacion()" data-tooltip="Vista de presentación">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+          </button>
+        </div>
+        Analítica y Detalles de Tareas
+        <div class="tituloBloque-icons tituloBloque-icons-derecha">
+          <button id="btnExportarPDF" type="button" onclick="exportarPDF()" data-tooltip="Exportar PNG">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="12" y1="18" x2="12" y2="12"/>
+              <polyline points="9 15 12 18 15 15"/>
+            </svg>
+          </button>
+          <button id="btnResumenEjecutivo" type="button" onclick="generarResumenEjecutivo()" data-tooltip="Generar Resumen Ejecutivo (Word)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <path d="M14 2v6h6"/>
+              <line x1="8" y1="13" x2="16" y2="13"/>
+              <line x1="8" y1="17" x2="16" y2="17"/>
+              <line x1="8" y1="9" x2="10" y2="9"/>
+            </svg>
+          </button>
+        </div>
+      </h2>
+      <div class="gridGraficos">
+        <div class="panel panel-barras">
+          <h2>Tareas Atrasadas y No Atrasadas por Grupo</h2>
+          <div id="graficoBarras" class="contenedorGrafico"></div>
+        </div>
+      
+        <div class="panel panel-torta">
+          <h2>Estado de Tareas</h2>
+          <div id="graficoTorta" class="contenedorGrafico"></div>
+        </div>
+      
+        <div class="panel panel-linea-real">
+          <h2 class="linea-h2">
+            <span>Diagrama de Gantt</span>
+          </h2>
+
+          <div id="filtrosFsGantt" class="fs-gantt-filtros">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <div id="ganttZoomToggleSlot"></div>
+              <button id="gsBtnLimpiarFiltros" type="button" class="btn-limpiar-fs" onclick="limpiarFiltrosGanttFs()" data-tooltip="Limpiar filtros" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                  <line x1="18" y1="1" x2="6" y2="23"></line>
+                </svg>
+              </button>
+            </div>
+            <div style="display:flex; flex:1; gap:0.5vw; align-items:center; justify-content:center;">
+              <div class="filtroBox">
+                <label>ID Proyecto</label>
+                <select id="gsSelectProyecto"></select>
+              </div>
+              <div class="filtroBox">
+                <label>N° DE GRUPO</label>
+                <select id="gsSelectGrupo"></select>
+              </div>
+              <div class="filtroBox">
+                <label>Responsable</label>
+                <select id="gsSelectResponsable"></select>
+              </div>
+              <div class="filtroBox" style="position: relative;">
+                <label>Buscar</label>
+                <div class="buscador-input-container">
+                  <input type="text" id="gsBuscadorTareas" placeholder="Escribí y presioná Enter...">
+                  <button id="gsBtnLimpiar" data-tooltip="Limpiar búsqueda">✕</button>
+                  <span id="gsContadorTareas" style="display:none; font-size:1.1vh; color:var(--epec-verde-brillante); font-weight:600; white-space:nowrap; padding-left:4px;"></span>
+                </div>
+                <ul id="gsSugerencias" class="sugerencias-dropdown" style="display:none; position:absolute; top:100%; left:0; width:100%; z-index:9999;"></ul>
+              </div>
+            </div>
+          </div>
+
+          <div id="graficoLineaReal" class="contenedorGrafico"></div>
+        </div>
+      
+        <div class="panel panel-tareas-grupo">
+          <h2 class="linea-h2">
+            <div class="linea-h2-icons">
+              <svg class="gantt-icon" onclick="exportarTareasGrupoCSV()" title="Exportar a Excel (CSV)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                <polyline points="7 3 7 8 15 8"></polyline>
+              </svg>
+            </div>
+            <span>Detalles de Tareas por Grupo</span>
+          </h2>
+          <div id="tablaTareasGrupo" class="contenedorTabla"></div>
+        </div>
+      
+        <div class="panel panel-tareas-criticas">
+          <h2 class="linea-h2">
+            <div class="linea-h2-icons">
+              <svg class="gantt-icon" onclick="exportarTareasCriticasCSV()" title="Exportar a Excel (CSV)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                <polyline points="7 3 7 8 15 8"></polyline>
+              </svg>
+            </div>
+            <span>Tareas Críticas ( < 7 días ) y Atrasadas</span>
+          </h2>
+          <div id="tablaTareasCriticas" class="contenedorTabla"></div>
+        </div>
+      
+        <div class="panel panel-linea-comparacion">
+          <h2 class="linea-h2">
+            <div class="linea-h2-icons">
+              <svg id="btnFullscreenLinea" class="gantt-icon" title="Pantalla Completa" onclick="toggleFullscreenLineaComparacion()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path class="fs-linea-path" d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+              </svg>
+            </div>
+            <span id="tituloGraficoComparacion">Avance Real VS Avance Teórico</span>
+          </h2>
+
+          <!-- Filtros visibles solo en pantalla completa -->
+          <div id="filtrosFsLinea" class="fs-linea-filtros">
+            <div id="fsVentanaLinea" style="display:flex; gap:4px; align-items:center;"></div>
+            <div style="display:flex; gap:0.5vw; align-items:center; justify-content:center;">
+              <div class="filtroBox">
+                <label>ID Proyecto</label>
+                <select id="fsSelectorProyecto"></select>
+              </div>
+              <div class="filtroBox">
+                <label>N° DE GRUPO</label>
+                <select id="fsSelectorGrupo"></select>
+              </div>
+              <div class="filtroBox">
+                <label>Responsable</label>
+                <select id="fsSelectorResponsable"></select>
+              </div>
+              <div class="filtroBox" style="position: relative;">
+                <label>Buscar</label>
+                <div class="buscador-input-container">
+                  <input type="text" id="fsBuscadorTareas" placeholder="Escribí y presioná Enter...">
+                  <button id="fsBtnLimpiar" data-tooltip="Limpiar búsqueda">✕</button>
+                  <span id="fsContadorTareas" style="display:none; font-size:1.1vh; color:var(--epec-verde-brillante); font-weight:600; white-space:nowrap; padding-left:4px;"></span>
+                </div>
+                <ul id="fsSugerencias" class="sugerencias-dropdown" style="display:none; position:absolute; top:100%; left:0; width:100%; z-index:9999;"></ul>
+              </div>
+            </div>
+            <div id="fsDesvioLinea" style="display:flex; align-items:center; justify-content:flex-end;"></div>
+          </div>
+
+          <div id="graficoLineaComparacion" class="contenedorGrafico"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="script.js?v=20260831f"></script>
+
+
+  <div id="vistaComparativa" class="vista-comparativa-overlay" style="display:none;">
+    <div class="vista-comparativa-modal">
+      <div class="vc-header">
+        <span class="vc-titulo">Vista Comparativa — Todos los Proyectos</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span id="vcBadge" class="vc-badge"></span>
+          <button class="vc-cerrar" onclick="toggleVistaComparativa()" data-tooltip="Cerrar">✕</button>
+        </div>
+      </div>
+      <div class="vc-table-wrap">
+        <table class="vc-table" id="vcTabla">
+          <thead>
+            <tr>
+              <th class="vc-th-sort" data-col="id">ID Proyecto <span class="sort-icon">▲</span></th>
+              <th class="vc-th-sort centro" data-col="semaforo">Semáforo <span class="sort-icon">▲</span></th>
+              <th class="vc-th-sort" data-col="avance">Avance <span class="sort-icon">▲</span></th>
+              <th class="vc-th-sort" style="text-align:right;padding-right:1.5vw;" data-col="desvio">Desvío HOY <span class="sort-icon">▲</span></th>
+              <th class="vc-th-sort centro" data-col="fin">Fecha Fin <span class="sort-icon">▲</span></th>
+              <th class="vc-th-sort" style="text-align:right;padding-right:1.5vw;white-space:nowrap;" data-col="dias">Días Restantes <span class="sort-icon">▲</span></th>
+              <th class="vc-th-sort" style="text-align:right;padding-right:1.5vw;white-space:nowrap;" data-col="atrasadas">Tareas Atrasadas <span class="sort-icon">▲</span></th>
+              <th class="centro">Detalle</th>
+            </tr>
+          </thead>
+          <tbody id="vcTbody"></tbody>
+        </table>
+      </div>
+      <div class="vc-footer">Ordenable por cualquier columna · Click en "Ver →" para ir al detalle del proyecto</div>
+    </div>
+  </div>
+
+  <div id="modalComentarios" class="comentarios-overlay" style="display:none;">
+    <div class="comentarios-modal">
+      <div class="comentarios-header">
+        <span class="comentarios-titulo" id="comentariosTituloTarea">Comentarios</span>
+        <button class="vc-cerrar" onclick="cerrarPanelComentarios()" data-tooltip="Cerrar">✕</button>
+      </div>
+      <div class="comentarios-lista" id="comentariosLista"></div>
+      <div class="comentarios-form">
+        <input type="text" id="comentarioAutorInput" class="comentario-autor-input" placeholder="Tu nombre" maxlength="80">
+        <span class="comentario-campo-error" id="errorComentarioAutor"></span>
+        <textarea id="comentarioTextoInput" class="comentario-texto-input" rows="3" placeholder="Escribí un comentario..." maxlength="2000"></textarea>
+        <span class="comentario-campo-error" id="errorComentarioTexto"></span>
+        <div class="comentario-asignado-box" id="comentarioAsignadoBox">
+          <div class="comentario-asignado-chips" id="comentarioAsignadoChips"></div>
+          <input type="text" id="comentarioAsignadoInput" class="comentario-autor-input" placeholder="Buscar y asignar a..." autocomplete="off">
+          <ul class="comentario-asignado-dropdown" id="comentarioAsignadoDropdown" style="display:none;"></ul>
+        </div>
+        <span class="comentario-campo-error" id="errorComentarioAsignado"></span>
+        <div class="comentarios-form-acciones">
+          <button class="comentario-guardar-btn comentario-guardar-btn-secundario" id="btnNotificarMail" onclick="guardarComentario(true)" data-tooltip="Guarda el comentario y abre Outlook con el mail ya armado">📧 Notificar por mail</button>
+          <button class="comentario-guardar-btn comentario-guardar-btn-secundario" id="btnGuardarComentario" onclick="guardarComentario(false)">Guardar comentario</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalConfirmacion" class="confirmacion-overlay" style="display:none;">
+    <div class="confirmacion-modal">
+      <div class="confirmacion-titulo" id="confirmacionTitulo">¿Confirmar?</div>
+      <div class="confirmacion-mensaje" id="confirmacionMensaje"></div>
+      <div class="confirmacion-acciones">
+        <button type="button" class="comentario-mini-btn comentario-mini-btn-secundario" id="btnConfirmacionCancelar">Cancelar</button>
+        <button type="button" class="comentario-mini-btn comentario-mini-btn-peligro" id="btnConfirmacionAceptar">Eliminar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastActualizacion" class="toast-actualizacion"></div>
+
+  <div id="badgeUltimaActualizacion">
+    <span class="badge-texto">Actualización:</span>
+    <span class="badge-hora" id="badgeHora">—</span>
+  </div>
+</body>
+</html>
