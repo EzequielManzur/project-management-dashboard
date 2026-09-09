@@ -180,6 +180,7 @@ Chrome, Firefox, Safari, Edge (latest versions).
 - Requires a modern browser with ES6 support
 - Large datasets (>5000 tasks) may show performance degradation
 - The S-curve requires consistent date formatting (YYYY-MM-DD)
+- Desktop-first: the Gantt and progress curves require a wide viewport (≥1280px)
 
 ## License
 
